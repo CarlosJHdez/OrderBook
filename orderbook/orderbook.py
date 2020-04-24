@@ -4,8 +4,6 @@ from collections import deque # a faster insert/pop queue
 from six.moves import cStringIO as StringIO
 from decimal import Decimal
 
-from .ordertree import OrderTree
-
 class OrderBook(object):
     def __init__(self, tick_size = 0.0001):
         self.tape = deque(maxlen=None) # Index[0] is most recent trade
@@ -20,16 +18,19 @@ class OrderBook(object):
     def update_time(self):
         self.time += 1
 
-    def process_order(self, quote, from_data, verbose):
+    def process_order(self, quote, from_data=False, verbose=True):
         order_type = quote['type']
         order_in_book = None
+        trades = None
         if from_data:
             self.time = quote['timestamp']
         else:
             self.update_time()
             quote['timestamp'] = self.time
         if quote['quantity'] <= 0:
-            sys.exit('process_order() given order of quantity <= 0')
+            # sys.exit('process_order() given order of quantity <= 0')
+            # ToDo: Fail gracefully.  For now don't kill the program!
+            return trades, order_in_book
         if not from_data:
             self.next_order_id += 1
         if order_type == 'market':
@@ -38,7 +39,9 @@ class OrderBook(object):
             quote['price'] = Decimal(quote['price'])
             trades, order_in_book = self.process_limit_order(quote, from_data, verbose)
         else:
-            sys.exit("order_type for process_order() is neither 'market' or 'limit'")
+            # sys.exit("order_type for process_order() is neither 'market' or 'limit'")
+            # ToDo: Fail gracefully.  For now don't kill the program!
+            pass
         return trades, order_in_book
 
     def process_order_list(self, side, order_list, quantity_still_to_trade, quote, verbose):
@@ -109,7 +112,7 @@ class OrderBook(object):
                 quantity_to_trade, new_trades = self.process_order_list('bid', best_price_bids, quantity_to_trade, quote, verbose)
                 trades += new_trades
         else:
-            sys.exit('process_market_order() recieved neither "bid" nor "ask"')
+            sys.exit('process_market_order() received neither "bid" nor "ask"')
         return trades
 
     def process_limit_order(self, quote, from_data, verbose):
